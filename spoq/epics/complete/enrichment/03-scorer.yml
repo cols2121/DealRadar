@@ -1,7 +1,7 @@
 id: 03-scorer
 title: Implement scorer pipeline with JSON validation and cost logging
 epic: enrichment
-status: pending
+status: completed
 priority: critical
 phase: 1
 

@@ -1,0 +1,58 @@
+## EXAMPLE 1 — POSITIVE (score 82)
+
+Candidate signals:
+- Source: companies_house
+  Company: Helix Data Ltd (CH: 15234567)
+  Incorporated: 2026-01-15
+  SIC: 62020 (IT consultancy activities)
+  Directors: Sarah Chen (prev: Monzo Bank Ltd, dissolved 2024)
+  URL: https://find-and-update.company-information.service.gov.uk/company/15234567
+
+- Source: github
+  Repo: helix-data/helix-core
+  Stars: 47 (velocity: 6.7/week)
+  Owner location: London, UK
+  Bio: "Previously @monzo. Building data infrastructure for SMEs."
+  URL: https://github.com/helix-data/helix-core
+
+Expected output:
+{
+  "score": 82,
+  "stage_guess": "pre-seed",
+  "one_line": "London-based data infrastructure startup founded by ex-Monzo engineer with fast-growing open-source traction.",
+  "memo_3_lines": "Helix Data Ltd was incorporated in January 2026 with IT SIC code 62020, signalling a genuine tech company rather than a holding entity (https://find-and-update.company-information.service.gov.uk/company/15234567).\nFounder Sarah Chen previously directed Monzo Bank Ltd, a strong ex-scaleup signal that matches the thesis bonus criteria (https://find-and-update.company-information.service.gov.uk/company/15234567).\nThe open-source repo helix-data/helix-core has gained 47 stars at 6.7/week velocity, suggesting early developer traction for a working product (https://github.com/helix-data/helix-core).",
+  "confidence": "high",
+  "evidence_urls": [
+    "https://find-and-update.company-information.service.gov.uk/company/15234567",
+    "https://github.com/helix-data/helix-core"
+  ]
+}
+
+---
+
+## EXAMPLE 2 — NEGATIVE (score 12)
+
+Candidate signals:
+- Source: companies_house
+  Company: Digital Consultants UK Ltd (CH: 09876543)
+  Incorporated: 2019-03-10
+  SIC: 62020 (IT consultancy activities)
+  Directors: James Wright (5 active directorships, all similar names)
+  URL: https://find-and-update.company-information.service.gov.uk/company/09876543
+
+- Source: hacker_news
+  Title: "Show HN: We built a WordPress plugin for SME invoicing"
+  URL: https://news.ycombinator.com/item?id=39012345
+
+Expected output:
+{
+  "score": 12,
+  "stage_guess": "unknown",
+  "one_line": "IT consultancy incorporated in 2019 offering WordPress plugins — not a pre-seed startup.",
+  "memo_3_lines": "Digital Consultants UK Ltd was incorporated in 2019, well outside the newly-formed window, and its director holds 5 similar directorships suggesting a consulting vehicle rather than a startup (https://find-and-update.company-information.service.gov.uk/company/09876543).\nThe HN post describes a WordPress plugin for invoicing, which does not demonstrate a technical founder building a scalable product (https://news.ycombinator.com/item?id=39012345).\nWith no evidence of a technical co-founder, working product beyond a plugin, or pre-seed fundraise, this entity does not meet the thesis must_have criteria (https://find-and-update.company-information.service.gov.uk/company/09876543).",
+  "confidence": "high",
+  "evidence_urls": [
+    "https://find-and-update.company-information.service.gov.uk/company/09876543",
+    "https://news.ycombinator.com/item?id=39012345"
+  ]
+}

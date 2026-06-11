@@ -1,7 +1,7 @@
 id: 02-scoring-prompt
 title: Write LLM scoring prompt with cite-or-omit rule and few-shot examples
 epic: enrichment
-status: pending
+status: completed
 priority: critical
 phase: 1
 

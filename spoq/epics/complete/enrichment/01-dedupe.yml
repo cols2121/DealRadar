@@ -1,7 +1,7 @@
 id: 01-dedupe
 title: Cross-source entity deduplication with rapidfuzz
 epic: enrichment
-status: pending
+status: completed
 priority: critical
 phase: 0
 
