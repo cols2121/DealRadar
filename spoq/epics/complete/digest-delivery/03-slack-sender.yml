@@ -1,7 +1,7 @@
 id: 03-slack-sender
 title: Implement Slack digest sender with Block Kit
 epic: digest-delivery
-status: pending
+status: completed
 priority: critical
 phase: 1
 

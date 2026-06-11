@@ -40,6 +40,19 @@ pytest -q
 python -m scripts.run_pipeline
 ```
 
+## Deploy the feedback endpoint
+
+The 👍/👎 buttons require a live HTTPS endpoint. Deploy to Render free tier in ~5 minutes:
+
+1. Push this repo to GitHub (public or private)
+2. Go to [render.com](https://render.com) → New → Web Service → connect your repo
+3. Render auto-detects `render.yaml` — click **Deploy**
+4. Copy the service URL (e.g. `https://dealradar-feedback.onrender.com`)
+5. In your Slack app settings → **Interactivity & Shortcuts** → set Request URL to `<your-render-url>/slack/actions`
+6. Add `FEEDBACK_ENDPOINT=<your-render-url>` to GitHub Actions secrets
+
+The `/health` endpoint confirms the service is running.
+
 ## Out of scope (v1)
 
 - LinkedIn scraping (ToS risk)

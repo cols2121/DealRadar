@@ -1,7 +1,7 @@
 id: 02-feedback-api
 title: Build FastAPI feedback endpoint for Slack button payloads
 epic: digest-delivery
-status: pending
+status: completed
 priority: critical
 phase: 0
 

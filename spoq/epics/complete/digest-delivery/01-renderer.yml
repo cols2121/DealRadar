@@ -1,7 +1,7 @@
 id: 01-renderer
 title: Build digest renderer producing Slack Block Kit and email HTML
 epic: digest-delivery
-status: pending
+status: completed
 priority: critical
 phase: 0
 
