@@ -1,7 +1,7 @@
 id: 04-ph-collector
 title: Implement Product Hunt collector
 epic: collectors
-status: pending
+status: completed
 priority: medium
 phase: 1
 

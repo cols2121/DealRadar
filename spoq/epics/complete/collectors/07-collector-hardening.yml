@@ -1,7 +1,7 @@
 id: 07-collector-hardening
 title: Add retries, run reports, and failure alerts across all collectors
 epic: collectors
-status: pending
+status: completed
 priority: high
 phase: 2
 

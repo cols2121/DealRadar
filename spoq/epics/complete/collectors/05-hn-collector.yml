@@ -1,7 +1,7 @@
 id: 05-hn-collector
 title: Implement Hacker News collector
 epic: collectors
-status: pending
+status: completed
 priority: medium
 phase: 1
 

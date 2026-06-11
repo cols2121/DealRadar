@@ -1,7 +1,7 @@
 id: 03-gh-collector
 title: Implement GitHub collector
 epic: collectors
-status: pending
+status: completed
 priority: critical
 phase: 0
 

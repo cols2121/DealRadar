@@ -1,7 +1,7 @@
 id: 02-ch-collector
 title: Implement Companies House collector
 epic: collectors
-status: pending
+status: completed
 priority: critical
 phase: 0
 

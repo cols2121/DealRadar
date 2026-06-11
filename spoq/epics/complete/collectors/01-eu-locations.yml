@@ -1,7 +1,7 @@
 id: 01-eu-locations
 title: Build EU location normalisation lookup
 epic: collectors
-status: pending
+status: completed
 priority: critical
 phase: 0
 
