@@ -51,3 +51,36 @@ Moved: spoq/epics/active/foundation → spoq/epics/complete/foundation
 
 Wave 1 of map: collectors epic — 7 tasks, start with 01-eu-locations, 02-ch-collector, 03-gh-collector in parallel.
 
+---
+agent: Agent Execution Overseer (Claude Sonnet 4.6)
+start_time: 2026-06-11T18:00:00Z
+end_time: 2026-06-11T18:30:00Z
+confidence: 0.98
+session_type: epic_execution
+epic: feedback-loop
+wave: all (0, 1)
+tasks_completed: 3
+tasks_failed: 0
+tasks_total: 3
+---
+
+## Feedback-Loop Epic — Complete
+
+Final epic in the DealRadar pipeline map. All 3 tasks executed by Opus worker agents.
+
+## Tasks Completed
+
+- 01-fewshot-updater — `enrich/fewshot_updater.py`; reads feedback, appends new few-shot examples to score_fewshot.txt; idempotent via HTML markers
+- 02-precision-tracker — `enrich/precision_tracker.py`; 7-day rolling precision (ups/rated), weekly snapshot to metrics table, `format_for_digest()` for footer
+- 03-exclude-updater — `enrich/exclude_updater.py`; keyword extraction from thumbs-down memos, proposes thesis.yaml exclude additions with human confirmation gate
+
+## Epic Archived
+
+Moved: spoq/epics/active/feedback-loop → spoq/epics/complete/feedback-loop
+ROADMAP.yml: all 5 epics now status: completed
+
+## Pipeline Map — DONE
+
+All 5 epics complete. DealRadar v0.1 is feature-complete.
+Next: push to GitHub, configure secrets, deploy feedback endpoint to Render.
+

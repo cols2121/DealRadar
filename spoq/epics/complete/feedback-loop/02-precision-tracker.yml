@@ -1,7 +1,7 @@
 id: 02-precision-tracker
 title: Compute weekly precision metric from feedback
 epic: feedback-loop
-status: pending
+status: completed
 priority: high
 phase: 0
 

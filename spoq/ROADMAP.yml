@@ -13,32 +13,32 @@ epics:
     tasks: [01-repo-scaffold, 02-sqlite-schema, 03-thesis-config, 04-llm-client, 05-github-actions, 06-smoke-tests]
 
   - slug: collectors
-    path: spoq/epics/active/collectors
-    status: pending
+    path: spoq/epics/complete/collectors
+    status: completed
     wave: 1
     estimated_hours: 10
     dependencies: [foundation]
     tasks: [01-eu-locations, 02-ch-collector, 03-gh-collector, 04-ph-collector, 05-hn-collector, 06-rss-collector, 07-collector-hardening]
 
   - slug: enrichment
-    path: spoq/epics/active/enrichment
-    status: pending
+    path: spoq/epics/complete/enrichment
+    status: completed
     wave: 2
     estimated_hours: 8
     dependencies: [collectors]
     tasks: [01-dedupe, 02-scoring-prompt, 03-scorer, 04-ranker]
 
   - slug: digest-delivery
-    path: spoq/epics/active/digest-delivery
-    status: pending
+    path: spoq/epics/complete/digest-delivery
+    status: completed
     wave: 3
     estimated_hours: 8
     dependencies: [enrichment]
     tasks: [01-renderer, 02-feedback-api, 03-slack-sender, 04-email-sender, 05-render-deploy, 06-run-report]
 
   - slug: feedback-loop
-    path: spoq/epics/active/feedback-loop
-    status: pending
+    path: spoq/epics/complete/feedback-loop
+    status: completed
     wave: 4
     estimated_hours: 6
     dependencies: [digest-delivery]
