@@ -1,0 +1,85 @@
+id: 01-eu-locations
+title: Build EU location normalisation lookup
+epic: collectors
+status: pending
+priority: critical
+phase: 0
+
+estimate:
+  optimistic: 20m
+  realistic: 45m
+  pessimistic: 1.5h
+
+dependencies: []
+
+skills_required:
+  - python
+
+files_to_touch:
+  - collectors/eu_locations.py
+
+outputs:
+  - is_eu_location(text) -> bool function
+  - Covers country names, ISO codes, flag emojis, major cities (~80% coverage)
+  - Logs unmatched strings for post-hoc review
+
+acceptance_criteria:
+  - "[ ] is_eu_location('London') returns True"
+  - "[ ] is_eu_location('UK') returns True"
+  - "[ ] is_eu_location('🇬🇧') returns True"
+  - "[ ] is_eu_location('Berlin') returns True"
+  - "[ ] is_eu_location('San Francisco') returns False"
+  - "[ ] is_eu_location('Remote') returns False"
+  - "[ ] Unknown strings logged to stderr with '[eu_loc MISS]' prefix"
+
+description: |
+  ## Objective
+
+  GitHub profile location is free text. This module normalises it to a boolean for EU/non-EU filtering.
+
+  ## Implementation
+
+  ```python
+  # collectors/eu_locations.py
+  import re, sys
+
+  EU_COUNTRIES = {
+      "uk", "united kingdom", "england", "scotland", "wales", "northern ireland",
+      "germany", "deutschland", "france", "netherlands", "holland", "sweden", "spain",
+      "italy", "poland", "portugal", "belgium", "austria", "switzerland", "denmark",
+      "norway", "finland", "ireland", "czech republic", "czechia", "romania",
+      "hungary", "greece", "croatia", "slovakia", "slovenia", "estonia", "latvia",
+      "lithuania", "luxembourg", "malta", "cyprus", "bulgaria", "serbia",
+      # ISO 2-letter
+      "gb", "de", "fr", "nl", "se", "es", "it", "pl", "pt", "be", "at", "ch",
+      "dk", "no", "fi", "ie", "cz", "ro", "hu", "gr", "hr", "sk", "si", "ee",
+      "lv", "lt", "lu", "mt", "cy", "bg", "rs",
+  }
+
+  EU_CITIES = {
+      "london", "ldn", "berlin", "amsterdam", "paris", "stockholm", "dublin",
+      "barcelona", "madrid", "lisbon", "warsaw", "vienna", "zurich", "geneva",
+      "copenhagen", "oslo", "helsinki", "brussels", "rome", "milan", "munich",
+      "hamburg", "frankfurt", "bucharest", "budapest", "prague", "zagreb",
+      "vilnius", "riga", "tallinn", "edinburgh", "manchester", "bristol",
+      "cambridge", "oxford",
+  }
+
+  EU_FLAGS = {"🇬🇧","🇩🇪","🇫🇷","🇳🇱","🇸🇪","🇪🇸","🇮🇹","🇵🇱","🇵🇹","🇧🇪","🇦🇹","🇨🇭",
+              "🇩🇰","🇳🇴","🇫🇮","🇮🇪","🇨🇿","🇷🇴","🇭🇺","🇬🇷","🇭🇷","🇸🇰","🇸🇮","🇪🇪",
+              "🇱🇻","🇱🇹","🇱🇺","🇲🇹","🇨🇾","🇧🇬","🇷🇸"}
+
+  def is_eu_location(text: str) -> bool:
+      if not text:
+          return False
+      for flag in EU_FLAGS:
+          if flag in text:
+              return True
+      normalised = text.lower().strip()
+      parts = re.split(r"[,/|·•\s]+", normalised)
+      for part in parts:
+          if part in EU_COUNTRIES or part in EU_CITIES:
+              return True
+      print(f"[eu_loc MISS] {text!r}", file=sys.stderr)
+      return False
+  ```

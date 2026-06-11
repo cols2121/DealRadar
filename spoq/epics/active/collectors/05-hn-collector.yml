@@ -1,0 +1,44 @@
+id: 05-hn-collector
+title: Implement Hacker News collector
+epic: collectors
+status: pending
+priority: medium
+phase: 1
+
+estimate:
+  optimistic: 1h
+  realistic: 2h
+  pessimistic: 3h
+
+dependencies:
+  - 01-eu-locations
+
+skills_required:
+  - python
+
+files_to_touch:
+  - collectors/hn.py
+
+outputs:
+  - collect() fetching Show HN posts and "we're building" comments from last 7 days
+  - EU heuristics applied (domain TLD, posting-time distribution, bio keywords)
+  - Writes raw_signal rows to SQLite
+
+acceptance_criteria:
+  - "[ ] `python -m collectors.hn` writes rows without error"
+  - "[ ] Show HN posts detected via title prefix 'Show HN:'"
+  - "[ ] EU heuristic noted in DECISIONS.md as approximate (not reliable alone)"
+
+description: |
+  ## Objective
+
+  HN "Show HN" posts are high-signal: founder is shipping something real and seeking feedback. EU heuristics are imperfect and documented as such.
+
+  ## API
+
+  Algolia HN search: `GET https://hn.algolia.com/api/v1/search?query=Show+HN&tags=story&numericFilters=created_at_i>TIMESTAMP`
+
+  EU heuristics (apply any one = include):
+  1. Domain TLD: .co.uk, .io (weak), .de, .fr, .nl, .se, .fi, .ie, .no, .dk
+  2. Profile location via is_eu_location()
+  3. Posting time 07:00–12:00 UTC (EU morning — imperfect, noted in DECISIONS.md)

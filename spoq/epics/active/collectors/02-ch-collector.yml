@@ -1,0 +1,125 @@
+id: 02-ch-collector
+title: Implement Companies House collector
+epic: collectors
+status: pending
+priority: critical
+phase: 0
+
+estimate:
+  optimistic: 1.5h
+  realistic: 3h
+  pessimistic: 5h
+
+dependencies: []
+
+skills_required:
+  - python
+  - httpx
+  - rest-api
+
+files_to_touch:
+  - collectors/ch.py
+
+outputs:
+  - collect() function: fetches last 7 days of incorporations filtered by tech SIC codes
+  - Director history check: flags serial founders (prior dissolved/active tech companies)
+  - Writes raw_signal rows to SQLite via Store
+
+acceptance_criteria:
+  - "[ ] Running `python -m collectors.ch` writes ≥1 row to raw_signals table"
+  - "[ ] Only companies with tech SIC codes are included (62012, 62020, 62090, 63110, 72190)"
+  - "[ ] Serial founder flag set when a director has prior tech company directorships"
+  - "[ ] 0.5s delay between paginated requests"
+  - "[ ] HTTP errors trigger 3-attempt retry with exponential backoff"
+  - "[ ] Run report printed: N companies fetched, N written, duration"
+
+description: |
+  ## Objective
+
+  Companies House is the highest-signal source: structured government data, free API, no rate limits, and director history enables serial founder detection.
+
+  ## Tech SIC Codes to filter on
+
+  62012 - Computer programming, consultancy (but also: legitimate SaaS)
+  62020 - Information technology consultancy
+  62090 - Other IT service activities
+  63110 - Data processing, hosting, related activities
+  72190 - Other research and experimental development on natural sciences and engineering
+
+  ## Key API endpoints
+
+  - Search: `GET https://api.company-information.service.gov.uk/search/companies?q=*&incorporated_from=YYYY-MM-DD`
+  - Company profile: `GET /company/{company_number}`
+  - Officers: `GET /company/{company_number}/officers`
+  - Officer appointments: `GET /officers/{officer_id}/appointments`
+
+  ## Implementation sketch
+
+  ```python
+  # collectors/ch.py
+  import os, time
+  from datetime import date, timedelta
+  import httpx
+  from store import Store
+
+  BASE = "https://api.company-information.service.gov.uk"
+  TECH_SIC = {"62012","62020","62090","63110","72190"}
+  EX_SCALEUP_KEYWORDS = ["monzo","revolut","wise","spotify","delivery hero","transferwise","babylon"]
+
+  def _get(path, params=None):
+      for attempt in range(3):
+          try:
+              r = httpx.get(f"{BASE}{path}", params=params,
+                            auth=(os.environ["CH_API_KEY"], ""), timeout=10)
+              r.raise_for_status()
+              return r.json()
+          except Exception as e:
+              if attempt == 2:
+                  raise
+              time.sleep(2 ** attempt)
+
+  def collect():
+      store = Store(); store.init_db()
+      since = (date.today() - timedelta(days=7)).isoformat()
+      start = time.time()
+      written = 0
+      # Paginate through recent incorporations
+      start_index = 0
+      while True:
+          data = _get("/search/companies", {
+              "q": "*", "incorporated_from": since,
+              "start_index": start_index, "items_per_page": 100
+          })
+          items = data.get("items", [])
+          if not items:
+              break
+          for item in items:
+              num = item.get("company_number")
+              if not num:
+                  continue
+              profile = _get(f"/company/{num}")
+              sic_codes = set(profile.get("sic_codes", []))
+              if not sic_codes & TECH_SIC:
+                  continue
+              officers = _get(f"/company/{num}/officers").get("items", [])
+              serial_founder = False
+              for officer in officers:
+                  links = officer.get("links", {})
+                  officer_id = links.get("officer", {}).get("appointments", "").split("/")[-2]
+                  if officer_id:
+                      appts = _get(f"/officers/{officer_id}/appointments").get("items", [])
+                      if len(appts) > 1:
+                          serial_founder = True
+              store.insert_signal("companies_house", num, {
+                  **profile, "officers": officers, "serial_founder": serial_founder
+              })
+              written += 1
+          start_index += 100
+          if start_index >= data.get("total_results", 0):
+              break
+          time.sleep(0.5)
+      print(f"[ch] wrote {written} records in {time.time()-start:.1f}s")
+
+  if __name__ == "__main__":
+      collect()
+  ```

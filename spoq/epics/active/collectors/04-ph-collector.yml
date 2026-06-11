@@ -1,0 +1,56 @@
+id: 04-ph-collector
+title: Implement Product Hunt collector
+epic: collectors
+status: pending
+priority: medium
+phase: 1
+
+estimate:
+  optimistic: 1h
+  realistic: 2h
+  pessimistic: 3h
+
+dependencies:
+  - 01-eu-locations
+
+skills_required:
+  - python
+  - graphql
+
+files_to_touch:
+  - collectors/ph.py
+
+outputs:
+  - collect() fetching last 7 days of PH launches with EU maker locations
+  - Writes raw_signal rows to SQLite
+
+acceptance_criteria:
+  - "[ ] `python -m collectors.ph` writes rows to raw_signals without error"
+  - "[ ] EU filter applied to maker location via is_eu_location()"
+  - "[ ] entity_key = 'producthunt.com/posts/<slug>'"
+
+description: |
+  ## Objective
+
+  Product Hunt surfaces EU founders who have shipped an MVP — a strong "working product" signal aligned with the thesis must_have criteria.
+
+  ## API
+
+  Product Hunt public GraphQL API (no auth required for public data):
+  `POST https://api.producthunt.com/v2/api/graphql`
+
+  ```graphql
+  query {
+    posts(order: NEWEST, after: "2026-06-04") {
+      edges {
+        node {
+          id slug name tagline url
+          makers { name profileUrl websiteUrl twitterUsername }
+          votesCount commentsCount createdAt
+        }
+      }
+    }
+  }
+  ```
+
+  Filter: at least one maker with `is_eu_location(maker.websiteUrl or maker.twitterUsername or bio)`.

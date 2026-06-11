@@ -1,0 +1,77 @@
+id: 03-exclude-updater
+title: Detect recurring downvote patterns and propose thesis exclude additions
+epic: feedback-loop
+status: pending
+priority: medium
+phase: 1
+
+estimate:
+  optimistic: 45m
+  realistic: 1.5h
+  pessimistic: 3h
+
+dependencies:
+  - 01-fewshot-updater
+
+skills_required:
+  - python
+
+files_to_touch:
+  - enrich/exclude_updater.py
+
+outputs:
+  - detect_exclude_patterns() — finds common keywords in thumbs-downed memos
+  - Proposes additions to thesis.yaml exclude list with human-confirm (y/n prompt)
+  - Writes confirmed exclusions to config/thesis.yaml
+
+acceptance_criteria:
+  - "[ ] Keyword appearing in 5+ thumbs-downed memos triggers a propose step"
+  - "[ ] Human-confirm prompt: 'Add 'agency' to thesis exclude list? [y/N]'"
+  - "[ ] Confirmed exclusions appended to thesis.yaml exclude list"
+  - "[ ] Non-interactive mode (CI) skips the prompt and logs proposed-but-unconfirmed"
+
+description: |
+  ## Implementation sketch
+
+  ```python
+  # enrich/exclude_updater.py
+  import os, re
+  from collections import Counter
+  from store import Store
+  from config.thesis_model import load_thesis
+  import yaml
+  from pathlib import Path
+
+  THRESHOLD = 5
+  STOPWORDS = {"the","a","an","is","in","for","of","and","to","with","that"}
+
+  def detect_exclude_patterns():
+      store = Store()
+      rows = store.conn.execute("""
+          SELECT s.memo FROM scores s
+          JOIN feedback f ON s.entity_key = f.entity_key
+          WHERE f.signal = 'down'
+      """).fetchall()
+      words = Counter()
+      for row in rows:
+          for w in re.findall(r'\b\w{4,}\b', (row["memo"] or "").lower()):
+              if w not in STOPWORDS:
+                  words[w] += 1
+      thesis = load_thesis()
+      existing_exclude = set(thesis.exclude)
+      for word, count in words.most_common(10):
+          if count >= THRESHOLD and word not in existing_exclude:
+              if os.getenv("CI"):
+                  print(f"[exclude] Proposed (unconfirmed in CI): '{word}' ({count} downs)")
+                  continue
+              confirm = input(f"Add '{word}' to thesis exclude list? ({count} downvotes) [y/N] ")
+              if confirm.lower() == "y":
+                  _append_exclude(word)
+                  print(f"[exclude] Added '{word}' to thesis.yaml")
+
+  def _append_exclude(keyword: str):
+      path = Path("config/thesis.yaml")
+      data = yaml.safe_load(path.read_text())
+      data["thesis"]["exclude"].append(keyword)
+      path.write_text(yaml.dump(data, default_flow_style=False))
+  ```

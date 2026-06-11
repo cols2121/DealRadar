@@ -1,0 +1,62 @@
+id: 01-renderer
+title: Build digest renderer producing Slack Block Kit and email HTML
+epic: digest-delivery
+status: pending
+priority: critical
+phase: 0
+
+estimate:
+  optimistic: 45m
+  realistic: 1.5h
+  pessimistic: 3h
+
+dependencies: []
+
+skills_required:
+  - python
+  - slack-block-kit
+
+files_to_touch:
+  - digest/renderer.py
+
+outputs:
+  - render_slack_blocks(candidates, run_report) -> list[dict] — valid Block Kit payload
+  - render_email_html(candidates, run_report) -> str — plain HTML fallback
+  - Each candidate block: name, one-liner, 3-line memo, evidence links, 👍/👎 action buttons
+
+acceptance_criteria:
+  - "[ ] render_slack_blocks() returns valid Block Kit JSON (no Slack API errors on send)"
+  - "[ ] Each candidate block contains an actions block with thumbs_up and thumbs_down buttons"
+  - "[ ] Button value encodes entity_key for feedback routing"
+  - "[ ] Run report appears as a context block at the bottom of the message"
+  - "[ ] render_email_html() returns non-empty HTML string"
+
+description: |
+  ## Block Kit structure per candidate
+
+  ```json
+  [
+    {"type": "divider"},
+    {
+      "type": "section",
+      "text": {"type": "mrkdwn", "text": "*Company Name* — one-line description\n\nMemo line 1. Memo line 2. Memo line 3.\n\n<url1|Evidence 1> · <url2|Evidence 2>"},
+      "accessory": {"type": "image", "image_url": "...", "alt_text": "logo"}
+    },
+    {
+      "type": "actions",
+      "elements": [
+        {"type": "button", "text": {"type": "plain_text", "text": "👍"}, "value": "up::<entity_key>", "action_id": "feedback_up"},
+        {"type": "button", "text": {"type": "plain_text", "text": "👎"}, "value": "down::<entity_key>", "action_id": "feedback_down"}
+      ]
+    }
+  ]
+  ```
+
+  ## Run report context block
+
+  ```json
+  {
+    "type": "context",
+    "elements": [{"type": "mrkdwn", "text": "📊 Today: 47 entities scanned · 5 sources live · Cost: £0.014 · Precision (7d): 62%"}]
+  }
+  ```

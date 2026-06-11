@@ -1,0 +1,68 @@
+id: 02-precision-tracker
+title: Compute weekly precision metric from feedback
+epic: feedback-loop
+status: pending
+priority: high
+phase: 0
+
+estimate:
+  optimistic: 30m
+  realistic: 1h
+  pessimistic: 2h
+
+dependencies: []
+
+skills_required:
+  - python
+
+files_to_touch:
+  - enrich/precision_tracker.py
+
+outputs:
+  - get_precision_summary() -> dict with this_week %, last_week %, trend arrow
+  - Precision stored in SQLite metrics table (add to schema.sql)
+
+acceptance_criteria:
+  - "[ ] Returns {'this_week': 0.62, 'last_week': 0.45, 'trend': '↑'} format"
+  - "[ ] Returns None gracefully if fewer than 3 rated entities this week"
+  - "[ ] digest footer uses this to render 'Precision (7d): 62% ↑ from 45%'"
+
+description: |
+  ## Schema addition (add to schema.sql)
+
+  ```sql
+  CREATE TABLE IF NOT EXISTS metrics (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      week      TEXT NOT NULL,   -- ISO week: "2026-W24"
+      precision REAL,
+      rated_n   INTEGER,
+      ts        TEXT NOT NULL
+  );
+  ```
+
+  ## Implementation
+
+  ```python
+  from store import Store
+  from datetime import date
+
+  def get_precision_summary() -> dict | None:
+      store = Store()
+      def precision_for_week(week_offset=0):
+          rows = store.conn.execute("""
+              SELECT signal FROM feedback
+              WHERE strftime('%W-%Y', ts) = strftime('%W-%Y', date('now', ? || ' days'))
+          """, (str(-7 * week_offset),)).fetchall()
+          if len(rows) < 3:
+              return None, len(rows)
+          ups = sum(1 for r in rows if r["signal"] == "up")
+          return ups / len(rows), len(rows)
+
+      this, n = precision_for_week(0)
+      last, _ = precision_for_week(1)
+      if this is None:
+          return None
+      trend = "↑" if (last is None or this > last) else ("↓" if this < last else "→")
+      return {"this_week": round(this, 2), "last_week": round(last, 2) if last else None,
+              "rated_n": n, "trend": trend}
+  ```

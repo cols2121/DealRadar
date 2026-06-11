@@ -1,0 +1,84 @@
+id: 06-smoke-tests
+title: Write API smoke tests verifying all credentials
+epic: foundation
+status: completed
+priority: high
+phase: 2
+
+estimate:
+  optimistic: 20m
+  realistic: 45m
+  pessimistic: 1h
+
+dependencies:
+  - 02-sqlite-schema
+  - 03-thesis-config
+  - 04-llm-client
+
+skills_required:
+  - python
+  - httpx
+
+files_to_touch:
+  - scripts/smoke_test.py
+
+outputs:
+  - smoke_test.py that hits Companies House, GitHub, and Anthropic APIs and exits 0 only if all pass
+
+acceptance_criteria:
+  - "[ ] `python scripts/smoke_test.py` exits 0 with valid credentials"
+  - "[ ] Exits non-zero and prints which API failed with valid credentials not set"
+  - "[ ] Each check completes in <5s (uses httpx with timeout=5)"
+  - "[ ] Output is human-readable: '✓ Companies House OK' / '✗ GitHub FAIL: 401'"
+
+description: |
+  ## Objective
+
+  Single script that confirms all external credentials are working before any collector runs.
+
+  ## Implementation
+
+  ```python
+  # scripts/smoke_test.py
+  import os, sys
+  import httpx
+
+  CHECKS = [
+      ("Companies House", lambda: httpx.get(
+          "https://api.company-information.service.gov.uk/search/companies?q=test",
+          auth=(os.environ["CH_API_KEY"], ""), timeout=5
+      ).raise_for_status()),
+      ("GitHub", lambda: httpx.get(
+          "https://api.github.com/user",
+          headers={"Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}"},
+          timeout=5
+      ).raise_for_status()),
+      ("Anthropic", lambda: __import__("enrich.llm_client", fromlist=["LLMClient"]).LLMClient().complete("ping", max_tokens=3)),
+  ]
+
+  failed = []
+  for name, check in CHECKS:
+      try:
+          check()
+          print(f"  ✓ {name} OK")
+      except Exception as e:
+          print(f"  ✗ {name} FAIL: {e}")
+          failed.append(name)
+
+  if failed:
+      print(f"\nFailed: {', '.join(failed)}")
+      sys.exit(1)
+  else:
+      print("\nAll checks passed.")
+  ```
+
+  ## Verification
+
+  ```bash
+  python scripts/smoke_test.py
+  # Expected output:
+  #   ✓ Companies House OK
+  #   ✓ GitHub OK
+  #   ✓ Anthropic OK
+  #   All checks passed.
+  ```

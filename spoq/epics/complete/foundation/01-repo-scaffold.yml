@@ -1,0 +1,106 @@
+id: 01-repo-scaffold
+title: Create public repo scaffold with README and DECISIONS.md
+epic: foundation
+status: completed
+progress_notes: "Scaffold complete — README (pitch, pipeline, sources table, run-it-yourself, out-of-scope, fund roadmap), DECISIONS.md (3 entries), .gitignore, valid pyproject.toml with 9 deps, and 6 package __init__.py files all created and verified."
+priority: critical
+phase: 0
+
+estimate:
+  optimistic: 30m
+  realistic: 1h
+  pessimistic: 1.5h
+
+dependencies: []
+
+skills_required:
+  - python
+  - markdown
+  - git
+
+files_to_touch:
+  - README.md
+  - DECISIONS.md
+  - .gitignore
+  - pyproject.toml
+  - collectors/__init__.py
+  - enrich/__init__.py
+  - digest/__init__.py
+  - config/__init__.py
+  - scripts/__init__.py
+
+outputs:
+  - README with one-sentence pitch, ASCII pipeline diagram, architecture overview, "Status: building in public, started <date>" line
+  - DECISIONS.md with 3 entries (SQLite over Postgres, cite-or-omit, Companies House first)
+  - .gitignore covering data/, .env, __pycache__, *.pyc
+  - pyproject.toml with Python 3.12, pinned core deps (httpx, pydantic, anthropic, rapidfuzz, fastapi)
+  - Empty __init__.py in each package directory
+
+acceptance_criteria:
+  - "[ ] README renders correctly on GitHub with no broken links"
+  - "[ ] DECISIONS.md has 3 complete entries each with context + decision + consequences"
+  - "[ ] .gitignore prevents data/ and .env from being tracked: `git status` shows neither"
+  - "[ ] `python -c 'import collectors, enrich, digest'` succeeds"
+  - "[ ] pyproject.toml or requirements.txt lists all deps with pinned versions"
+
+description: |
+  ## Objective
+
+  Create the public repo structure that all other tasks build into, and write the two narrative documents (README, DECISIONS.md) that form the engineering judgment signal for the Playfair application.
+
+  ## Prerequisites
+
+  - Git repo initialised in the project directory
+  - Python 3.12 available
+
+  ## Steps
+
+  1. **Write README.md** — include in order:
+     - One-sentence pitch: "A daily agent that scans public signals for newly-forming European startups, scores them against a pre-seed thesis, and delivers a 5-company digest to Slack/email with one-click feedback."
+     - Status badge: "Status: building in public, started YYYY-MM-DD"
+     - ASCII pipeline diagram: `[Collectors] → [Dedupe + Entity Store] → [LLM Enrichment + Scoring] → [Ranker] → [Digest] → [Feedback Loop]`
+     - Data sources table (5 sources, access method, week added)
+     - "Run it yourself" section (placeholder, <10 steps)
+     - Out of scope section (LinkedIn scraping, paid data, CRM, multi-tenant auth)
+     - Roadmap section titled "What I'd build next inside a fund"
+
+  2. **Write DECISIONS.md** — each entry format: `## Decision: <title>` / `**Context:**` / `**Decision:**` / `**Consequences:**`
+     - Entry 1: SQLite over Postgres — zero ops, single-file DB, the cron job is the only moving part
+     - Entry 2: Cite-or-omit anti-hallucination — every claim in LLM memo must map to an evidence URL; if model can't cite it, it doesn't print it
+     - Entry 3: Companies House before Product Hunt — structured government data, no rate limits, serial founder signal is high-precision
+
+  3. **Create directory structure** with empty `__init__.py` files:
+     ```
+     collectors/
+     enrich/
+     digest/
+     config/
+     scripts/
+     data/          (gitignored)
+     ```
+
+  4. **Write .gitignore**:
+     ```
+     data/
+     .env
+     __pycache__/
+     *.pyc
+     .pytest_cache/
+     *.egg-info/
+     dist/
+     ```
+
+  5. **Write pyproject.toml** with `[project]` section specifying Python >=3.12 and dependencies:
+     `httpx>=0.27`, `pydantic>=2.7`, `anthropic>=0.25`, `rapidfuzz>=3.9`, `fastapi>=0.111`, `uvicorn>=0.30`, `pyyaml>=6.0`, `resend>=2.0`
+
+  ## Verification
+
+  ```bash
+  git status  # data/ and .env should not appear
+  python -c "import collectors, enrich, digest, config"
+  python -m pip install -e . --dry-run  # should resolve without conflicts
+  ```
+
+  ## Notes
+
+  The README roadmap section ("What I'd build next inside a fund") is pre-answering the Playfair interview. Include: inbound pitch triage, portfolio-support automations, fourth-fund data room tooling. Write it as if already in residence.

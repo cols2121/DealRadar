@@ -1,0 +1,69 @@
+id: 02-feedback-api
+title: Build FastAPI feedback endpoint for Slack button payloads
+epic: digest-delivery
+status: pending
+priority: critical
+phase: 0
+
+estimate:
+  optimistic: 45m
+  realistic: 1.5h
+  pessimistic: 2.5h
+
+dependencies: []
+
+skills_required:
+  - python
+  - fastapi
+
+files_to_touch:
+  - digest/feedback_api.py
+  - Procfile
+
+outputs:
+  - FastAPI app with POST /slack/actions endpoint
+  - Parses Slack payload, extracts entity_key and up/down signal
+  - Writes to feedback table via Store
+  - Returns 200 immediately (Slack requires <3s response)
+
+acceptance_criteria:
+  - "[ ] POST /slack/actions with a valid Slack button payload writes to feedback table"
+  - "[ ] Endpoint returns {'ok': true} within 1s"
+  - "[ ] Invalid payloads return 400 with error message (no 500s)"
+  - "[ ] Procfile: `web: uvicorn digest.feedback_api:app --host 0.0.0.0 --port $PORT`"
+
+description: |
+  ## Implementation
+
+  ```python
+  # digest/feedback_api.py
+  import json, urllib.parse
+  from fastapi import FastAPI, Request, Response
+  from store import Store
+
+  app = FastAPI()
+
+  @app.post("/slack/actions")
+  async def slack_actions(request: Request):
+      body = await request.body()
+      payload = json.loads(urllib.parse.unquote(body.decode().removeprefix("payload=")))
+      for action in payload.get("actions", []):
+          value = action.get("value", "")
+          if "::" in value:
+              signal, entity_key = value.split("::", 1)
+              user_id = payload.get("user", {}).get("id", "unknown")
+              Store().insert_feedback(entity_key, user_id, signal)
+      return {"ok": True}
+
+  @app.get("/health")
+  async def health():
+      return {"status": "ok"}
+  ```
+
+  ## Render deployment
+
+  - Connect GitHub repo to Render
+  - Build command: `pip install -e .`
+  - Start command: `uvicorn digest.feedback_api:app --host 0.0.0.0 --port $PORT`
+  - Set env var: `DATABASE_URL` pointing to a persistent volume path (or use Render's disk)
+  - Copy the Render HTTPS URL to `FEEDBACK_ENDPOINT` env var in GitHub Actions secrets

@@ -1,0 +1,87 @@
+id: 03-thesis-config
+title: Write thesis.yaml and Pydantic config model
+epic: foundation
+status: completed
+priority: high
+phase: 0
+
+estimate:
+  optimistic: 20m
+  realistic: 45m
+  pessimistic: 1.5h
+
+dependencies: []
+
+skills_required:
+  - python
+  - pydantic
+  - yaml
+
+files_to_touch:
+  - config/thesis.yaml
+  - config/thesis_model.py
+
+outputs:
+  - config/thesis.yaml matching the spec
+  - config/thesis_model.py with Pydantic ThesisConfig model and load_thesis() function
+
+acceptance_criteria:
+  - "[ ] `python -c 'from config.thesis_model import load_thesis; t = load_thesis(); print(t.stage)'` prints 'pre-seed'"
+  - "[ ] Pydantic validation rejects a thesis.yaml missing required fields"
+  - "[ ] load_thesis() accepts an optional path argument for test overrides"
+
+description: |
+  ## Objective
+
+  Define the swappable thesis configuration that drives LLM scoring and is injected verbatim into the scoring prompt.
+
+  ## thesis.yaml
+
+  ```yaml
+  thesis:
+    stage: "pre-seed (pre-revenue OK, raising <= £2m)"
+    geography:
+      - UK
+      - Europe
+    must_have:
+      - technical founder
+      - working product
+    bonus:
+      - ex-scaleup senior engineer
+      - second-time founder
+      - deep tech
+    exclude:
+      - agencies
+      - consultancies
+      - crypto tokens
+      - already raised seed+
+    notes: >
+      Focus on companies that would benefit from institutional pre-seed capital.
+      Early signals matter more than traction at this stage.
+  ```
+
+  ## thesis_model.py
+
+  ```python
+  from pydantic import BaseModel
+  from pathlib import Path
+  import yaml
+
+  class ThesisConfig(BaseModel):
+      stage: str
+      geography: list[str]
+      must_have: list[str]
+      bonus: list[str]
+      exclude: list[str]
+      notes: str = ""
+
+  def load_thesis(path: Path = Path("config/thesis.yaml")) -> ThesisConfig:
+      data = yaml.safe_load(path.read_text())
+      return ThesisConfig(**data["thesis"])
+  ```
+
+  ## Verification
+
+  ```bash
+  python -c "from config.thesis_model import load_thesis; t = load_thesis(); assert t.stage.startswith('pre-seed'); print('OK')"
+  ```

@@ -1,0 +1,157 @@
+id: 02-sqlite-schema
+title: Define SQLite schema and Store wrapper
+epic: foundation
+status: completed
+priority: critical
+phase: 0
+
+estimate:
+  optimistic: 30m
+  realistic: 1h
+  pessimistic: 2h
+
+dependencies: []
+
+skills_required:
+  - python
+  - sqlite
+
+files_to_touch:
+  - schema.sql
+  - store.py
+
+outputs:
+  - schema.sql with 4 tables committed to repo
+  - store.py with Store class: init_db(), insert_signal(), upsert_company(), insert_score(), insert_feedback()
+
+acceptance_criteria:
+  - "[ ] `python -c 'from store import Store; s = Store(); s.init_db()'` creates data/dealradar.db with all 4 tables"
+  - "[ ] `sqlite3 data/dealradar.db '.schema'` shows raw_signals, companies, scores, feedback tables"
+  - "[ ] WAL mode enabled: `PRAGMA journal_mode=WAL` confirmed in Store.__init__"
+  - "[ ] insert_signal() round-trips a test record without error"
+  - "[ ] data/dealradar.db is absent from git index"
+
+description: |
+  ## Objective
+
+  Define the single-file SQLite database that is the only persistence layer for the entire pipeline.
+
+  ## Schema
+
+  ```sql
+  -- Raw collector output, one row per signal per source
+  CREATE TABLE IF NOT EXISTS raw_signals (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      source      TEXT NOT NULL,        -- 'companies_house' | 'github' | 'product_hunt' | 'hn' | 'rss'
+      entity_key  TEXT NOT NULL,        -- stable identifier: domain or CH number or github org
+      raw_json    TEXT NOT NULL,        -- full API response as JSON string
+      collected_at TEXT NOT NULL        -- ISO8601 UTC
+  );
+  CREATE INDEX IF NOT EXISTS idx_signals_entity ON raw_signals(entity_key);
+  CREATE INDEX IF NOT EXISTS idx_signals_source ON raw_signals(source, collected_at);
+
+  -- Deduplicated entity record, one row per startup
+  CREATE TABLE IF NOT EXISTS companies (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_key   TEXT UNIQUE NOT NULL,
+      name         TEXT,
+      domain       TEXT,
+      founder_names TEXT,              -- JSON array
+      sources      TEXT,              -- JSON array of source names
+      first_seen   TEXT NOT NULL,
+      updated_at   TEXT NOT NULL
+  );
+
+  -- LLM scoring output
+  CREATE TABLE IF NOT EXISTS scores (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_key   TEXT NOT NULL,
+      score        INTEGER NOT NULL,   -- 0-100
+      stage_guess  TEXT,
+      one_line     TEXT,
+      memo         TEXT,              -- 3-line markdown memo
+      confidence   TEXT,
+      evidence_urls TEXT,             -- JSON array
+      tokens_used  INTEGER,
+      cost_gbp     REAL,
+      scored_at    TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_scores_entity ON scores(entity_key, scored_at);
+
+  -- User feedback from Slack buttons
+  CREATE TABLE IF NOT EXISTS feedback (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_key   TEXT NOT NULL,
+      user_id      TEXT NOT NULL,     -- Slack user ID or email
+      signal       TEXT NOT NULL,     -- 'up' | 'down'
+      ts           TEXT NOT NULL      -- ISO8601 UTC
+  );
+  ```
+
+  ## Store class
+
+  ```python
+  # store.py
+  import sqlite3, json
+  from pathlib import Path
+  from datetime import datetime, timezone
+
+  DB_PATH = Path("data/dealradar.db")
+
+  class Store:
+      def __init__(self, path=DB_PATH):
+          DB_PATH.parent.mkdir(exist_ok=True)
+          self.conn = sqlite3.connect(path)
+          self.conn.execute("PRAGMA journal_mode=WAL")
+          self.conn.row_factory = sqlite3.Row
+
+      def init_db(self):
+          schema = Path("schema.sql").read_text()
+          self.conn.executescript(schema)
+          self.conn.commit()
+
+      def insert_signal(self, source, entity_key, raw_json):
+          self.conn.execute(
+              "INSERT INTO raw_signals(source,entity_key,raw_json,collected_at) VALUES(?,?,?,?)",
+              (source, entity_key, json.dumps(raw_json), datetime.now(timezone.utc).isoformat())
+          )
+          self.conn.commit()
+
+      def upsert_company(self, entity_key, **fields):
+          now = datetime.now(timezone.utc).isoformat()
+          self.conn.execute("""
+              INSERT INTO companies(entity_key,name,domain,founder_names,sources,first_seen,updated_at)
+              VALUES(:entity_key,:name,:domain,:founder_names,:sources,:now,:now)
+              ON CONFLICT(entity_key) DO UPDATE SET
+                name=excluded.name, domain=excluded.domain,
+                founder_names=excluded.founder_names, sources=excluded.sources,
+                updated_at=excluded.updated_at
+          """, {"entity_key": entity_key, "now": now, **fields})
+          self.conn.commit()
+
+      def insert_score(self, entity_key, score_dict, tokens_used, cost_gbp):
+          now = datetime.now(timezone.utc).isoformat()
+          self.conn.execute("""
+              INSERT INTO scores(entity_key,score,stage_guess,one_line,memo,confidence,
+                                 evidence_urls,tokens_used,cost_gbp,scored_at)
+              VALUES(?,?,?,?,?,?,?,?,?,?)
+          """, (entity_key, score_dict["score"], score_dict.get("stage_guess"),
+                score_dict.get("one_line"), score_dict.get("memo_3_lines"),
+                score_dict.get("confidence"), json.dumps(score_dict.get("evidence_urls",[])),
+                tokens_used, cost_gbp, now))
+          self.conn.commit()
+
+      def insert_feedback(self, entity_key, user_id, signal):
+          self.conn.execute(
+              "INSERT INTO feedback(entity_key,user_id,signal,ts) VALUES(?,?,?,?)",
+              (entity_key, user_id, signal, datetime.now(timezone.utc).isoformat())
+          )
+          self.conn.commit()
+  ```
+
+  ## Verification
+
+  ```bash
+  python -c "from store import Store; s = Store(); s.init_db(); s.insert_signal('test','co_123',{'name':'Test Co'}); print('OK')"
+  sqlite3 data/dealradar.db "SELECT * FROM raw_signals"
+  ```

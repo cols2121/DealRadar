@@ -1,0 +1,33 @@
+id: 04-email-sender
+title: Implement email digest fallback via Resend
+epic: digest-delivery
+status: pending
+priority: medium
+phase: 1
+
+estimate:
+  optimistic: 30m
+  realistic: 1h
+  pessimistic: 2h
+
+dependencies:
+  - 01-renderer
+
+skills_required:
+  - python
+
+files_to_touch:
+  - digest/email_sender.py
+
+outputs:
+  - send_email_digest(candidates, run_report, to_addresses) -> None
+  - Uses Resend SDK if RESEND_API_KEY set, else plain SMTP
+
+acceptance_criteria:
+  - "[ ] With RESEND_API_KEY set, email delivered to test address"
+  - "[ ] Without RESEND_API_KEY, falls back to SMTP_HOST/PORT/USER/PASS env vars"
+  - "[ ] Email subject: 'DealRadar — {date} | Top {n} pre-seed signals'"
+  - "[ ] Email skipped silently if neither Resend nor SMTP configured (no crash)"
+
+description: |
+  Email is a fallback for non-Slack users (Week 3 user recruitment may surface some). Keep it simple — the Slack channel is the primary delivery surface.

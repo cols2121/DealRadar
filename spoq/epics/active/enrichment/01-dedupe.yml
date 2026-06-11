@@ -1,0 +1,80 @@
+id: 01-dedupe
+title: Cross-source entity deduplication with rapidfuzz
+epic: enrichment
+status: pending
+priority: critical
+phase: 0
+
+estimate:
+  optimistic: 1h
+  realistic: 2h
+  pessimistic: 4h
+
+dependencies: []
+
+skills_required:
+  - python
+  - rapidfuzz
+
+files_to_touch:
+  - enrich/dedupe.py
+
+outputs:
+  - dedupe(signals: list[dict]) -> list[dict] — merges signals by entity
+  - Writes deduplicated records to companies table via Store.upsert_company()
+
+acceptance_criteria:
+  - "[ ] Two signals with name similarity >90 are merged into one company record"
+  - "[ ] Signals from different sources for same entity are merged (sources list combined)"
+  - "[ ] Threshold configurable via DEDUPE_THRESHOLD env var (default 90)"
+  - "[ ] All merges logged: 'Merged X into Y (score: 94)'"
+
+description: |
+  ## Implementation
+
+  ```python
+  # enrich/dedupe.py
+  import os
+  from rapidfuzz import fuzz
+  from store import Store
+
+  THRESHOLD = int(os.getenv("DEDUPE_THRESHOLD", "90"))
+
+  def _key(signal):
+      """Extract best available text for fuzzy matching."""
+      raw = signal.get("raw_json", {})
+      return (raw.get("company_name") or raw.get("name") or
+              raw.get("nameWithOwner") or signal.get("entity_key", ""))
+
+  def dedupe(signals: list[dict]) -> list[dict]:
+      groups = []
+      for sig in signals:
+          key = _key(sig)
+          matched = None
+          for group in groups:
+              if fuzz.token_sort_ratio(key, _key(group[0])) >= THRESHOLD:
+                  matched = group
+                  break
+          if matched:
+              print(f"[dedupe] Merged {key!r} into {_key(matched[0])!r}")
+              matched.append(sig)
+          else:
+              groups.append([sig])
+      store = Store()
+      result = []
+      for group in groups:
+          merged = _merge_group(group)
+          store.upsert_company(**merged)
+          result.append(merged)
+      return result
+
+  def _merge_group(signals):
+      primary = signals[0]
+      sources = list({s["source"] for s in signals})
+      return {
+          "entity_key": primary["entity_key"],
+          "name": primary.get("raw_json", {}).get("name"),
+          "sources": str(sources),
+          # ... additional fields merged from all signals
+      }
+  ```

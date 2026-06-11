@@ -1,0 +1,96 @@
+id: 03-gh-collector
+title: Implement GitHub collector
+epic: collectors
+status: pending
+priority: critical
+phase: 0
+
+estimate:
+  optimistic: 1.5h
+  realistic: 3h
+  pessimistic: 5h
+
+dependencies: []
+
+skills_required:
+  - python
+  - graphql
+  - github-api
+
+files_to_touch:
+  - collectors/gh.py
+
+outputs:
+  - collect() scanning repos created <90 days ago with star velocity >N, EU owner location
+  - Org signal: new orgs whose members have ex-scaleup bios
+  - Writes raw_signal rows to SQLite
+
+acceptance_criteria:
+  - "[ ] Running `python -m collectors.gh` writes ≥1 row to raw_signals"
+  - "[ ] EU location filter applied via is_eu_location()"
+  - "[ ] Star velocity computed as stars / age_in_weeks"
+  - "[ ] Ex-scaleup bio detection checks Monzo, Revolut, Wise, Spotify, Delivery Hero keywords"
+  - "[ ] GraphQL requests respect secondary rate limits (1s delay between pages)"
+
+description: |
+  ## Objective
+
+  GitHub surfaces technical founders early — a new repo gaining stars or a new org formed by ex-scaleup engineers is a strong pre-seed signal.
+
+  ## GraphQL query pattern
+
+  ```graphql
+  query($cursor: String) {
+    search(query: "created:>2026-03-13 stars:>5 language:Python OR language:TypeScript", type: REPOSITORY, first: 100, after: $cursor) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        ... on Repository {
+          name nameWithOwner stargazerCount createdAt
+          owner {
+            login
+            ... on User { location bio }
+            ... on Organization { location description }
+          }
+          homepageUrl description
+        }
+      }
+    }
+  }
+  ```
+
+  ## Implementation sketch
+
+  ```python
+  # collectors/gh.py
+  import os, time
+  from datetime import date, timedelta
+  import httpx
+  from store import Store
+  from collectors.eu_locations import is_eu_location
+
+  GQL_URL = "https://api.github.com/graphql"
+  EX_SCALEUP = ["monzo","revolut","wise","spotify","deliveroo","delivery hero",
+                "transferwise","babylon","checkout.com","starling","freetrade"]
+  MIN_VELOCITY = 2  # stars per week minimum
+
+  def _gql(query, variables=None):
+      headers = {"Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}"}
+      for attempt in range(3):
+          try:
+              r = httpx.post(GQL_URL, json={"query": query, "variables": variables or {}},
+                             headers=headers, timeout=15)
+              r.raise_for_status()
+              data = r.json()
+              if "errors" in data:
+                  raise ValueError(data["errors"])
+              return data["data"]
+          except Exception as e:
+              if attempt == 2: raise
+              time.sleep(2 ** attempt)
+
+  def collect():
+      store = Store(); store.init_db()
+      since = (date.today() - timedelta(days=90)).strftime("%Y-%m-%d")
+      # [full implementation with pagination and eu filter]
+      # writes: store.insert_signal("github", f"github.com/{owner}", {...})
+  ```

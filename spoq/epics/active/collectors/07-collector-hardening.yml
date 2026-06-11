@@ -1,0 +1,72 @@
+id: 07-collector-hardening
+title: Add retries, run reports, and failure alerts across all collectors
+epic: collectors
+status: pending
+priority: high
+phase: 2
+
+estimate:
+  optimistic: 1h
+  realistic: 2h
+  pessimistic: 3h
+
+dependencies:
+  - 02-ch-collector
+  - 03-gh-collector
+  - 04-ph-collector
+  - 05-hn-collector
+  - 06-rss-collector
+
+skills_required:
+  - python
+
+files_to_touch:
+  - collectors/base.py
+  - dealradar/run.py
+
+outputs:
+  - BaseCollector with retry_get() using exponential backoff (3 attempts, 2^n seconds)
+  - RunReport dataclass: source, records_fetched, records_written, duration_s, errors[]
+  - All collectors inherit BaseCollector and return RunReport
+  - run.py aggregates reports and POSTs summary to Slack DM on failure
+
+acceptance_criteria:
+  - "[ ] A simulated 429 response triggers 3 retries before failing"
+  - "[ ] RunReport printed at end of each collector run"
+  - "[ ] run.py prints total entities collected, sources succeeded/failed, total cost"
+  - "[ ] Slack alert sent when any collector raises an unhandled exception"
+
+description: |
+  ## Objective
+
+  Silent failures kill the demo. Every collector must report what it did, and any crash must alert immediately.
+
+  ## BaseCollector
+
+  ```python
+  # collectors/base.py
+  import time, httpx
+  from dataclasses import dataclass, field
+
+  @dataclass
+  class RunReport:
+      source: str
+      records_fetched: int = 0
+      records_written: int = 0
+      duration_s: float = 0.0
+      errors: list[str] = field(default_factory=list)
+
+  class BaseCollector:
+      source: str = "base"
+
+      def retry_get(self, url, *, params=None, headers=None, auth=None, max_attempts=3):
+          for attempt in range(max_attempts):
+              try:
+                  r = httpx.get(url, params=params, headers=headers, auth=auth, timeout=15)
+                  r.raise_for_status()
+                  return r
+              except Exception as e:
+                  if attempt == max_attempts - 1:
+                      raise
+                  time.sleep(2 ** attempt)
+  ```

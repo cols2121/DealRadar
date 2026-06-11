@@ -1,0 +1,45 @@
+version: 1
+updated_at: "2026-06-11T16:39:00Z"
+
+map: spoq/maps/active/dealradar-pipeline/MAP.md
+
+epics:
+  - slug: foundation
+    path: spoq/epics/complete/foundation
+    status: completed
+    wave: 0
+    estimated_hours: 6
+    dependencies: []
+    tasks: [01-repo-scaffold, 02-sqlite-schema, 03-thesis-config, 04-llm-client, 05-github-actions, 06-smoke-tests]
+
+  - slug: collectors
+    path: spoq/epics/active/collectors
+    status: pending
+    wave: 1
+    estimated_hours: 10
+    dependencies: [foundation]
+    tasks: [01-eu-locations, 02-ch-collector, 03-gh-collector, 04-ph-collector, 05-hn-collector, 06-rss-collector, 07-collector-hardening]
+
+  - slug: enrichment
+    path: spoq/epics/active/enrichment
+    status: pending
+    wave: 2
+    estimated_hours: 8
+    dependencies: [collectors]
+    tasks: [01-dedupe, 02-scoring-prompt, 03-scorer, 04-ranker]
+
+  - slug: digest-delivery
+    path: spoq/epics/active/digest-delivery
+    status: pending
+    wave: 3
+    estimated_hours: 8
+    dependencies: [enrichment]
+    tasks: [01-renderer, 02-feedback-api, 03-slack-sender, 04-email-sender, 05-render-deploy, 06-run-report]
+
+  - slug: feedback-loop
+    path: spoq/epics/active/feedback-loop
+    status: pending
+    wave: 4
+    estimated_hours: 6
+    dependencies: [digest-delivery]
+    tasks: [01-fewshot-updater, 02-precision-tracker, 03-exclude-updater]

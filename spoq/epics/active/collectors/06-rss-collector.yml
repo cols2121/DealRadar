@@ -1,0 +1,62 @@
+id: 06-rss-collector
+title: Implement RSS news collector with LLM extraction
+epic: collectors
+status: pending
+priority: medium
+phase: 1
+
+estimate:
+  optimistic: 1h
+  realistic: 2h
+  pessimistic: 4h
+
+dependencies:
+  - 01-eu-locations
+
+skills_required:
+  - python
+  - rss
+
+files_to_touch:
+  - collectors/rss.py
+
+outputs:
+  - collect() fetching Sifted, Tech.eu, EU-Startups, TechCrunch EU feeds
+  - LLM extraction pass: "does this article mention a pre-seed/newly-formed company?"
+  - Writes raw_signal rows to SQLite
+
+acceptance_criteria:
+  - "[ ] All 4 feeds parsed without crashing; individual feed failures are non-fatal"
+  - "[ ] LLM extraction produces entity_key + name + stage_evidence or returns None"
+  - "[ ] entity_key = article URL for RSS-sourced signals"
+  - "[ ] Cost of LLM extraction pass logged per article"
+
+description: |
+  ## Objective
+
+  EU tech press surfaces stealth companies and tiny angel rounds that don't appear on Product Hunt or Companies House yet.
+
+  ## Feeds
+
+  - https://sifted.eu/feed
+  - https://tech.eu/feed
+  - https://www.eu-startups.com/feed
+  - https://techcrunch.com/tag/europe/feed
+
+  ## LLM extraction prompt (one call per article, Haiku)
+
+  ```
+  You are extracting startup signals from a news article.
+
+  Article title: {title}
+  Article summary: {summary}
+
+  If this article mentions a company that appears to be pre-seed or newly formed (raising under £2m, recently incorporated, or in very early stages), extract:
+  - name: company name
+  - stage_evidence: one sentence quoting the evidence from the article
+  - url: the article URL
+
+  If no such company is mentioned, return null.
+
+  Respond with valid JSON only. No explanation.
+  ```

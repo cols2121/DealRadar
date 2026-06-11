@@ -1,0 +1,52 @@
+id: 03-slack-sender
+title: Implement Slack digest sender with Block Kit
+epic: digest-delivery
+status: pending
+priority: critical
+phase: 1
+
+estimate:
+  optimistic: 30m
+  realistic: 1h
+  pessimistic: 2h
+
+dependencies:
+  - 01-renderer
+
+skills_required:
+  - python
+  - slack-api
+
+files_to_touch:
+  - digest/slack_sender.py
+
+outputs:
+  - send_digest(candidates, run_report) -> None
+  - POSTs Block Kit blocks to SLACK_WEBHOOK_URL
+  - Personal DM alert on failure via separate SLACK_ALERT_WEBHOOK_URL
+
+acceptance_criteria:
+  - "[ ] Calling send_digest() with test data delivers message to #dealradar channel"
+  - "[ ] Message contains all 5 candidates with buttons"
+  - "[ ] HTTP error on send raises and triggers failure alert"
+  - "[ ] SLACK_WEBHOOK_URL not set raises ValueError with clear message"
+
+description: |
+  ```python
+  # digest/slack_sender.py
+  import os, httpx
+
+  def send_digest(candidates: list[dict], run_report: dict) -> None:
+      webhook = os.environ.get("SLACK_WEBHOOK_URL")
+      if not webhook:
+          raise ValueError("SLACK_WEBHOOK_URL not set")
+      from digest.renderer import render_slack_blocks
+      blocks = render_slack_blocks(candidates, run_report)
+      r = httpx.post(webhook, json={"blocks": blocks}, timeout=10)
+      r.raise_for_status()
+
+  def send_alert(message: str) -> None:
+      webhook = os.environ.get("SLACK_ALERT_WEBHOOK_URL")
+      if webhook:
+          httpx.post(webhook, json={"text": message}, timeout=5)
+  ```

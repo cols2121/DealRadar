@@ -1,0 +1,83 @@
+id: 05-github-actions
+title: Configure GitHub Actions daily cron workflow
+epic: foundation
+status: completed
+priority: high
+phase: 1
+
+estimate:
+  optimistic: 20m
+  realistic: 45m
+  pessimistic: 1.5h
+
+dependencies:
+  - 01-repo-scaffold
+
+skills_required:
+  - github-actions
+  - yaml
+
+files_to_touch:
+  - .github/workflows/daily.yml
+
+outputs:
+  - daily.yml: cron at 07:30 UTC, installs deps, runs python -m dealradar.run, posts run report to Slack on failure
+
+acceptance_criteria:
+  - "[ ] Workflow file passes GitHub Actions YAML lint (no syntax errors)"
+  - "[ ] Cron expression `30 7 * * *` is correct for 07:30 UTC"
+  - "[ ] All required secrets referenced: ANTHROPIC_API_KEY, CH_API_KEY, SLACK_WEBHOOK_URL"
+  - "[ ] On failure, workflow posts alert to Slack via curl to SLACK_WEBHOOK_URL"
+  - "[ ] workflow_dispatch trigger present for manual runs"
+
+description: |
+  ## Objective
+
+  The GitHub Actions cron is the public-facing scheduler — visible in the repo, proving the product runs daily. It is also the failure-alert surface.
+
+  ## Implementation
+
+  ```yaml
+  # .github/workflows/daily.yml
+  name: DealRadar Daily Run
+
+  on:
+    schedule:
+      - cron: '30 7 * * *'   # 07:30 UTC daily
+    workflow_dispatch:         # manual trigger for testing
+
+  jobs:
+    run:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+
+        - uses: actions/setup-python@v5
+          with:
+            python-version: '3.12'
+            cache: pip
+
+        - name: Install dependencies
+          run: pip install -e .
+
+        - name: Run pipeline
+          env:
+            ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+            CH_API_KEY: ${{ secrets.CH_API_KEY }}
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          run: python -m dealradar.run
+
+        - name: Alert on failure
+          if: failure()
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          run: |
+            curl -s -X POST "$SLACK_WEBHOOK_URL" \
+              -H 'Content-type: application/json' \
+              -d '{"text":"🚨 DealRadar daily run FAILED — check GitHub Actions"}'
+  ```
+
+  ## Verification
+
+  - Push to repo and confirm Actions tab shows the workflow
+  - Trigger manually via `workflow_dispatch` to verify end-to-end (even if pipeline exits early without data)

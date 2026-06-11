@@ -1,0 +1,20 @@
+thesis:
+  stage: "pre-seed (pre-revenue OK, raising <= £2m)"
+  geography:
+    - UK
+    - Europe
+  must_have:
+    - technical founder
+    - working product
+  bonus:
+    - ex-scaleup senior engineer
+    - second-time founder
+    - deep tech
+  exclude:
+    - agencies
+    - consultancies
+    - crypto tokens
+    - already raised seed+
+  notes: >
+    Focus on companies that would benefit from institutional pre-seed capital.
+    Early signals matter more than traction at this stage.

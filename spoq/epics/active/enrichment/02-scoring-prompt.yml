@@ -1,0 +1,64 @@
+id: 02-scoring-prompt
+title: Write LLM scoring prompt with cite-or-omit rule and few-shot examples
+epic: enrichment
+status: pending
+priority: critical
+phase: 1
+
+estimate:
+  optimistic: 30m
+  realistic: 1.5h
+  pessimistic: 3h
+
+dependencies:
+  - 01-dedupe
+
+skills_required:
+  - prompt-engineering
+
+files_to_touch:
+  - enrich/prompts/score_system.txt
+  - enrich/prompts/score_fewshot.txt
+
+outputs:
+  - System prompt: thesis injection, strict JSON schema, cite-or-omit rule
+  - Few-shot file: 1 clear yes example, 1 clear no example, both with real evidence_urls
+
+acceptance_criteria:
+  - "[ ] System prompt references thesis config fields (stage, geography, must_have, bonus, exclude)"
+  - "[ ] JSON schema output documented: score, stage_guess, one_line, memo_3_lines, confidence, evidence_urls[]"
+  - "[ ] Cite-or-omit rule stated explicitly: 'Every sentence in memo_3_lines must cite a URL in evidence_urls. Remove any sentence you cannot cite.'"
+  - "[ ] Few-shot yes example scores 75+ and has 2+ evidence_urls"
+  - "[ ] Few-shot no example scores 20- and has an exclude reason"
+
+description: |
+  ## System prompt structure
+
+  ```
+  You are a pre-seed deal sourcing analyst for a European VC fund.
+
+  ## Investment Thesis
+  {thesis_yaml}
+
+  ## Your Task
+  Score this startup candidate 0-100 against the thesis.
+
+  ## Output Format (strict JSON, no other text)
+  {
+    "score": <integer 0-100>,
+    "stage_guess": "<e.g. pre-seed, seed, unknown>",
+    "one_line": "<one sentence company description>",
+    "memo_3_lines": "<3 sentences. CRITICAL: every sentence must cite a URL from evidence_urls. Remove any sentence you cannot cite.>",
+    "confidence": "<high|medium|low>",
+    "evidence_urls": ["<url1>", "<url2>"]
+  }
+
+  ## Anti-hallucination Rule
+  Every factual claim in memo_3_lines MUST correspond to a URL in evidence_urls.
+  If you cannot find a public URL supporting a claim, do not include the claim.
+  Cite or omit.
+  ```
+
+  ## DECISIONS.md entry to add
+
+  "cite-or-omit anti-hallucination: Rather than post-hoc fact-checking, the scoring prompt requires every claim in the memo to map to a cited evidence URL. If the model cannot cite it, the instruction is to omit it. This makes hallucinations structurally impossible to pass through — a claim without a URL simply doesn't exist in the output."

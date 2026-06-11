@@ -1,0 +1,49 @@
+id: 04-ranker
+title: Build ranker to select top N scored candidates
+epic: enrichment
+status: pending
+priority: high
+phase: 2
+
+estimate:
+  optimistic: 20m
+  realistic: 45m
+  pessimistic: 1.5h
+
+dependencies:
+  - 03-scorer
+
+skills_required:
+  - python
+
+files_to_touch:
+  - enrich/ranker.py
+
+outputs:
+  - get_top_n(n=5, date=today) -> list[ScoreResult] from SQLite scores table
+
+acceptance_criteria:
+  - "[ ] Returns top 5 by score desc for today's date"
+  - "[ ] Filters out scores with confidence='low' if n can be satisfied without them"
+  - "[ ] Returns fewer than n if not enough candidates scored today (does not crash)"
+
+description: |
+  ## Implementation
+
+  ```python
+  # enrich/ranker.py
+  from datetime import date
+  from store import Store
+
+  def get_top_n(n: int = 5, run_date: date = None) -> list[dict]:
+      run_date = run_date or date.today()
+      store = Store()
+      rows = store.conn.execute("""
+          SELECT s.*, c.name, c.domain
+          FROM scores s
+          LEFT JOIN companies c ON s.entity_key = c.entity_key
+          WHERE DATE(s.scored_at) = ?
+          ORDER BY s.score DESC
+      """, (run_date.isoformat(),)).fetchall()
+      return [dict(r) for r in rows[:n]]
+  ```

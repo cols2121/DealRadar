@@ -1,0 +1,58 @@
+id: 05-render-deploy
+title: Deploy feedback API to Render free tier
+epic: digest-delivery
+status: pending
+priority: high
+phase: 2
+
+estimate:
+  optimistic: 30m
+  realistic: 1h
+  pessimistic: 2h
+
+dependencies:
+  - 02-feedback-api
+
+skills_required:
+  - render
+  - deployment
+
+files_to_touch:
+  - Procfile
+  - render.yaml
+
+outputs:
+  - Feedback API live at HTTPS URL on Render
+  - render.yaml for reproducible deployment config
+  - FEEDBACK_ENDPOINT env var added to GitHub Actions secrets
+
+acceptance_criteria:
+  - "[ ] GET https://<render-url>/health returns {'status': 'ok'}"
+  - "[ ] POST https://<render-url>/slack/actions with test payload writes to DB"
+  - "[ ] Slack Interactivity URL set to the Render HTTPS endpoint"
+  - "[ ] Auto-deploy from main branch configured in Render"
+
+description: |
+  ## render.yaml
+
+  ```yaml
+  services:
+    - type: web
+      name: dealradar-feedback
+      env: python
+      buildCommand: pip install -e .
+      startCommand: uvicorn digest.feedback_api:app --host 0.0.0.0 --port $PORT
+      envVars:
+        - key: DATABASE_URL
+          value: /var/data/dealradar.db
+      disk:
+        name: dealradar-db
+        mountPath: /var/data
+        sizeGB: 1
+  ```
+
+  ## Slack Interactivity setup
+
+  In Slack App settings → Interactivity & Shortcuts:
+  - Enable Interactivity
+  - Request URL: `https://<render-url>/slack/actions`

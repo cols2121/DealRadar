@@ -1,0 +1,71 @@
+id: 01-fewshot-updater
+title: Update scoring few-shot examples from thumbs-down feedback
+epic: feedback-loop
+status: pending
+priority: high
+phase: 0
+
+estimate:
+  optimistic: 1h
+  realistic: 2h
+  pessimistic: 3h
+
+dependencies: []
+
+skills_required:
+  - python
+
+files_to_touch:
+  - enrich/fewshot_updater.py
+
+outputs:
+  - update_fewshots() — reads feedback table, appends negative examples to score_fewshot.txt when 3+ downs for same entity_key
+
+acceptance_criteria:
+  - "[ ] Entity with 3 thumbs-down generates a negative few-shot entry appended to score_fewshot.txt"
+  - "[ ] Duplicate entries not added (idempotent)"
+  - "[ ] Positive examples (3+ thumbs-up) also appended as positive few-shots"
+
+description: |
+  ## Implementation sketch
+
+  ```python
+  # enrich/fewshot_updater.py
+  from store import Store
+  from pathlib import Path
+
+  FEWSHOT_PATH = Path("enrich/prompts/score_fewshot.txt")
+  THRESHOLD = 3
+
+  def update_fewshots():
+      store = Store()
+      # Count signals per entity
+      rows = store.conn.execute("""
+          SELECT entity_key, signal, COUNT(*) as n
+          FROM feedback
+          GROUP BY entity_key, signal
+          HAVING n >= ?
+      """, (THRESHOLD,)).fetchall()
+
+      existing = FEWSHOT_PATH.read_text()
+      additions = []
+      for row in rows:
+          marker = f"entity_key:{row['entity_key']}"
+          if marker in existing:
+              continue
+          score_row = store.conn.execute(
+              "SELECT * FROM scores WHERE entity_key=? ORDER BY scored_at DESC LIMIT 1",
+              (row["entity_key"],)
+          ).fetchone()
+          if not score_row:
+              continue
+          label = "POSITIVE EXAMPLE" if row["signal"] == "up" else "NEGATIVE EXAMPLE"
+          additions.append(f"\n\n## {label} (user-validated)\n<!-- {marker} -->\n"
+                           f"Entity: {row['entity_key']}\n"
+                           f"Score given: {score_row['score']}\n"
+                           f"Memo: {score_row['memo']}\n"
+                           f"Signal: {row['signal']} ({row['n']} votes)")
+      if additions:
+          FEWSHOT_PATH.write_text(existing + "".join(additions))
+          print(f"[fewshot] Added {len(additions)} examples")
+  ```

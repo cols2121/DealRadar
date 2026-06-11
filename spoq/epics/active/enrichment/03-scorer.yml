@@ -1,0 +1,84 @@
+id: 03-scorer
+title: Implement scorer pipeline with JSON validation and cost logging
+epic: enrichment
+status: pending
+priority: critical
+phase: 1
+
+estimate:
+  optimistic: 1h
+  realistic: 2h
+  pessimistic: 4h
+
+dependencies:
+  - 01-dedupe
+  - 02-scoring-prompt
+
+skills_required:
+  - python
+
+files_to_touch:
+  - enrich/scorer.py
+
+outputs:
+  - score_entity(entity_key, signals) -> ScoreResult
+  - JSON validation: retries once with stricter prompt on malformed output
+  - Evidence enforcement: strips memo sentences lacking evidence_url citations
+  - Cost logged per entity; total written to run report
+
+acceptance_criteria:
+  - "[ ] score_entity() returns valid ScoreResult for a test company"
+  - "[ ] Malformed JSON triggers one retry; second failure raises ScoringError"
+  - "[ ] Cost in GBP logged per entity to stdout"
+  - "[ ] memo_3_lines with uncited claims stripped (not silently passed through)"
+
+description: |
+  ## Implementation
+
+  ```python
+  # enrich/scorer.py
+  import json
+  from pathlib import Path
+  from dataclasses import dataclass
+  from config.thesis_model import load_thesis
+  from enrich.llm_client import LLMClient
+
+  @dataclass
+  class ScoreResult:
+      score: int
+      stage_guess: str
+      one_line: str
+      memo_3_lines: str
+      confidence: str
+      evidence_urls: list[str]
+
+  SYSTEM = Path("enrich/prompts/score_system.txt").read_text()
+  FEWSHOT = Path("enrich/prompts/score_fewshot.txt").read_text()
+
+  def score_entity(entity_key: str, signals: list[dict]) -> ScoreResult:
+      thesis = load_thesis()
+      client = LLMClient()
+      prompt = f"{FEWSHOT}\n\n## Candidate\n\nEntity: {entity_key}\n\nSignals:\n{json.dumps(signals, indent=2)}"
+      system = SYSTEM.replace("{thesis_yaml}", thesis.model_dump_json(indent=2))
+
+      for attempt in range(2):
+          raw = client.complete(prompt, system=system, max_tokens=600)
+          try:
+              data = json.loads(raw)
+              result = ScoreResult(**{k: data[k] for k in ScoreResult.__dataclass_fields__})
+              # Enforce cite-or-omit: strip memo sentences without evidence
+              result.memo_3_lines = _enforce_citations(result.memo_3_lines, result.evidence_urls)
+              return result
+          except Exception as e:
+              if attempt == 1:
+                  raise ScoringError(f"Failed to parse scoring output for {entity_key}: {e}\nRaw: {raw}")
+
+  def _enforce_citations(memo: str, urls: list[str]) -> str:
+      """Remove memo sentences that don't cite any evidence URL."""
+      sentences = [s.strip() for s in memo.split(".") if s.strip()]
+      cited = [s for s in sentences if any(url in s for url in urls) or not urls]
+      return ". ".join(cited) + "." if cited else ""
+
+  class ScoringError(Exception):
+      pass
+  ```
