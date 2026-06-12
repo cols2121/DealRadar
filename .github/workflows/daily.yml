@@ -1,5 +1,9 @@
 name: DealRadar Daily Run
 
+# 1. Moving this to the root level clears the yellow Node 20 warning!
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   schedule:
     - cron: '30 7 * * *'
@@ -14,14 +18,13 @@ jobs:
       - uses: actions/setup-python@v5.3.0
         with:
           python-version: '3.12'
-          cache: pip
+          # 2. Deleting the cache line here completely bypasses GitHub's broken servers!
 
       - name: Install dependencies
         run: pip install -e .
 
       - name: Run pipeline
         env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CH_API_KEY: ${{ secrets.CH_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -36,5 +39,5 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           curl -s -X POST "$SLACK_WEBHOOK_URL" \
-            -H 'Content-type: application/json' \
-            -d '{"text":"🚨 DealRadar daily run FAILED — check GitHub Actions: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}'
+          -H 'Content-type: application/json' \
+          -d '{"text":"🚨 DealRadar daily run FAILED – check GitHub Actions: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}'
