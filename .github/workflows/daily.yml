@@ -21,7 +21,7 @@ jobs:
 
       - name: Run pipeline
         env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CH_API_KEY: ${{ secrets.CH_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
